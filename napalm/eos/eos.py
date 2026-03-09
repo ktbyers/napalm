@@ -318,23 +318,36 @@ class EOSDriver(NetworkDriver):
         {'napalm_607123': 522}
         """
         config_sessions = self._run_commands(["show configuration sessions detail"])
-        config_sessions = config_sessions[0]["sessions"]
         # Arista reports the commitBy time relative to uptime of the box... :-(
         uptime = self._run_commands(["show version"])
         uptime = uptime[0].get("uptime", -1)
 
         pending_commits = {}
-        for session_name, session_dict in config_sessions.items():
-            if "pendingCommitTimer" in session_dict["state"]:
-                commit_by = session_dict.get("commitBy", -1)
-                # Set to -1 if something went wrong in the calculation.
-                if commit_by == -1 or uptime == -1:
-                    pending_commits[session_name] = -1
-                elif uptime >= commit_by:
-                    pending_commits[session_name] = -1
-                else:
-                    confirm_by_seconds = commit_by - uptime
-                    pending_commits[session_name] = round(confirm_by_seconds)
+        # Syntax change >EOS 4.32
+        if "commitTimerSessionName" in config_sessions[0]:
+            config_sessions = config_sessions[0]
+            session_name = config_sessions["commitTimerSessionName"]
+            commit_by = config_sessions["commitTimerExpireTime"]
+            if commit_by == -1 or uptime == -1:
+                pending_commits[session_name] = -1
+            elif uptime >= commit_by:
+                pending_commits[session_name] = -1
+            else:
+                confirm_by_seconds = commit_by - uptime
+                pending_commits[session_name] = round(confirm_by_seconds)
+        else:
+            config_sessions = config_sessions[0]["sessions"]
+            for session_name, session_dict in config_sessions.items():
+                if "pendingCommitTimer" in session_dict["state"]:
+                    commit_by = session_dict.get("commitBy", -1)
+                    # Set to -1 if something went wrong in the calculation.
+                    if commit_by == -1 or uptime == -1:
+                        pending_commits[session_name] = -1
+                    elif uptime >= commit_by:
+                        pending_commits[session_name] = -1
+                    else:
+                        confirm_by_seconds = commit_by - uptime
+                        pending_commits[session_name] = round(confirm_by_seconds)
 
         return pending_commits
 
