@@ -68,6 +68,9 @@ types-requests = "2.32.4.20250611"
 types-six = "1.17.0.20250515"
 types-setuptools = "80.9.0.20250822"
 
+[tool.poetry.group.docs]
+optional = true
+
 [tool.poetry.group.docs.dependencies]
 urllib3 = "2.3.0"
 sphinx = "7.4.7"
