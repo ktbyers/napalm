@@ -68,6 +68,16 @@ types-requests = "2.32.4.20250611"
 types-six = "1.17.0.20250515"
 types-setuptools = "80.9.0.20250822"
 
+[tool.poetry.group.docs.dependencies]
+urllib3 = "2.3.0"
+sphinx = "7.4.7"
+sphinx-rtd-theme = "2.0.0"
+invoke = "2.2.0"
+jinja2 = "3.1.6"
+MarkupSafe = "3.0.3"
+pytest = "8.4.2"
+ansible = { version = "11.3.0", python = ">=3.11" }
+
 [tool.poetry.scripts]
 cl_napalm_configure = "napalm.base.clitools.cl_napalm_configure:main"
 cl_napalm_test = "napalm.base.clitools.cl_napalm_test:main"
