@@ -152,5 +152,5 @@ jobs:
 
       - name: Doctests
         run: |
-          make doctest
+          poetry run make doctest
 
