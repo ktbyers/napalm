@@ -1,0 +1,75 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "napalm"
+version = "5.1.1"
+description = "Network Automation and Programmability Abstraction Layer with Multivendor support"
+authors = [
+    "David Barroso <dbarrosop@dravetech.com>",
+    "Mircea Ulinic <ping@mirceaulinic.net>",
+    "Brandon Ewing <brandon.ewing@warningg.com>",
+    "Kirk Byers <ktbyers@twb-tech.com>",
+]
+license = "Apache-2.0"
+readme = "README.md"
+homepage = "https://github.com/napalm-automation/napalm"
+repository = "https://github.com/napalm-automation/napalm"
+classifiers = [
+    "Topic :: Utilities",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
+packages = [{ include = "napalm" }]
+include = ["LICENSE"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+paramiko = ">=3.5.0"
+requests = ">=2.7.0"
+textfsm = ">=1.1.3"
+jinja2 = ">=3.1.4"
+netaddr = ">= 1.3.0"
+pyyaml = ">=6.0.2"
+pyeapi = ">=1.0.2"
+netmiko = ">=4.4.0"
+junos-eznc = ">=2.7.4"
+lxml = ">=4.3.0"
+ncclient = ">=0.6.16"
+ttp = ">=0.9.5"
+ttp_templates = ">=0.3.7"
+netutils = ">=1.0.0"
+typing-extensions = ">=4.12.2"
+
+[tool.poetry.group.dev.dependencies]
+black = "24.4.2"
+coveralls = "4.1.0"
+flake8-import-order = "0.19.2"
+pytest = "8.4.2"
+pytest-cov = "7.0.0"
+pytest-json-report = "1.5.0"
+pyflakes = "3.4.0"
+# Required for pylama
+setuptools = "81.0.0"
+pylama = "8.4.1"
+mypy = "1.15.0"
+types-PyYAML = "6.0.12.20250915"
+types-requests = "2.32.4.20250611"
+types-six = "1.17.0.20250515"
+types-setuptools = "80.9.0.20250822"
+
+[tool.poetry.scripts]
+cl_napalm_configure = "napalm.base.clitools.cl_napalm_configure:main"
+cl_napalm_test = "napalm.base.clitools.cl_napalm_test:main"
+cl_napalm_validate = "napalm.base.clitools.cl_napalm_validate:main"
+napalm = "napalm.base.clitools.cl_napalm:main"
+
