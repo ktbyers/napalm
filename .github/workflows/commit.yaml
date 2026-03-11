@@ -84,6 +84,44 @@ jobs:
         run: |
           poetry run pytest --cov=napalm --cov-report term-missing -vs --pylama
 
+  std_tests_macos:
+    name: std_tests_macos
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      matrix:
+        python-version: [ '3.12', '3.13', '3.14' ]
+        platform: [macos-15]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - uses: actions/checkout@v4
+
+      - name: Install poetry
+        run: |
+          pipx install poetry
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          poetry install
+
+      - name: Run Tests
+        run: |
+          poetry run pytest --cov=napalm --cov-report term-missing -vs --pylama
+
   build_docs:
     name: build_docs
     needs: std_tests
@@ -116,132 +154,3 @@ jobs:
         run: |
           make doctest
 
-#
-#
-#------ HERE
-#  pytest-macos15:
-#    name: Std Test on Python ${{ matrix.python-version }} (${{ matrix.platform}})
-#    defaults:
-#      run:
-#        shell: bash
-#    strategy:
-#      matrix:
-#        python-version: [ '3.12', '3.13', '3.14' ]
-#        platform: [macos-15]
-#
-#    runs-on: ${{ matrix.platform }}
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Setup python
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: ${{ matrix.python-version }}
-#          architecture: x64
-#      - uses: actions/checkout@v4
-#
-#      - name: Install poetry
-#        run: |
-#          pipx install poetry
-#
-#      - name: Set up Python ${{ matrix.python-version }}
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: ${{ matrix.python-version }}
-#
-#      - name: Install dependencies
-#        run: |
-#          poetry install
-#
-#      - name: Run Tests
-#        run: |
-#          poetry run pytest -v -s tests/test_import_netmiko.py
-#          poetry run pytest -v -s tests/unit/test_base_connection.py
-#          poetry run pytest -v -s tests/unit/test_ssh_autodetect.py
-#          poetry run pytest -v -s tests/unit/test_connection.py
-#          poetry run pytest -v -s tests/unit/test_entry_points.py
-#
-#  pytest-macos14:
-#    name: Std Test on Python ${{ matrix.python-version }} (${{ matrix.platform}})
-#    defaults:
-#      run:
-#        shell: bash
-#    strategy:
-#      matrix:
-#        python-version: [ "3.12", "3.13", "3.14" ]
-#        platform: [macos-14]
-#
-#    runs-on: ${{ matrix.platform }}
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Setup python
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: ${{ matrix.python-version }}
-#          architecture: x64
-#      - uses: actions/checkout@v4
-#
-#      - name: Install poetry
-#        run: |
-#          pipx install poetry
-#
-#      - name: Set up Python ${{ matrix.python-version }}
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: ${{ matrix.python-version }}
-#
-#      - name: Install dependencies
-#        run: |
-#          poetry install
-#
-#      - name: Run Tests
-#        run: |
-#          poetry run pytest -v -s tests/test_import_netmiko.py
-#          poetry run pytest -v -s tests/unit/test_base_connection.py
-#          poetry run pytest -v -s tests/unit/test_ssh_autodetect.py
-#          poetry run pytest -v -s tests/unit/test_connection.py
-#          poetry run pytest -v -s tests/unit/test_entry_points.py
-#
-#  pytest_parsers:
-#    name: Parsers Test on Python ${{ matrix.python-version }} (${{ matrix.platform}})
-#    defaults:
-#      run:
-#        shell: bash
-#
-#    # Only use latest Python version that will work with pyats/genie due to their
-#    # ongoing issues supporting newer Python versions.
-#    strategy:
-#      matrix:
-#        python-version: [ '3.11']
-#        platform: [ubuntu-24.04]
-#
-#    runs-on: ${{ matrix.platform }}
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Setup python
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: ${{ matrix.python-version }}
-#          architecture: x64
-#      - uses: actions/checkout@v4
-#
-#      - name: Install poetry
-#        run: |
-#          pipx install poetry
-#
-#      - name: Set up Python ${{ matrix.python-version }}
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: ${{ matrix.python-version }}
-#          cache: 'poetry'
-#
-#      - name: Install dependencies
-#        run: |
-#          poetry install --with parsers
-#
-#      - name: Run Tests
-#        run: |
-#          poetry run pytest -v -s tests/test_import_netmiko.py
-#          poetry run pytest -v -s tests/unit/test_utilities.py
