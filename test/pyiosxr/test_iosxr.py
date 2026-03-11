@@ -67,6 +67,9 @@ class _MockedNetMikoDevice(object):
     def find_prompt(self):
         return self.get_mock_file("\n", format="txt")
 
+    def read_channel_timing(self):
+        return ""
+
     def send_command(
         self,
         command_string,
