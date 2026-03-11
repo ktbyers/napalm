@@ -600,6 +600,17 @@ test = ["certifi (>=2024)", "cryptography-vectors (==46.0.5)", "pretend (>=0.7)"
 test-randomorder = ["pytest-randomly"]
 
 [[package]]
+name = "ddt"
+version = "1.7.2"
+description = "Data-Driven/Decorated Tests"
+optional = false
+python-versions = "*"
+files = [
+    {file = "ddt-1.7.2-py2.py3-none-any.whl", hash = "sha256:6adcfaf9785f0a36f9e73a89b91e412de9ef8649e289b750e3683bc79d5e2354"},
+    {file = "ddt-1.7.2.tar.gz", hash = "sha256:d215d6b083963013c4a19b1e4dcd6a96e80e43ab77519597a6acfcf2e9a3e04b"},
+]
+
+[[package]]
 name = "exceptiongroup"
 version = "1.3.1"
 description = "Backport of PEP 654 (exception groups)"
@@ -1904,4 +1915,4 @@ test = ["coverage", "hypothesis", "pytest"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "bb43463120a7bf2dc1e15b424473bb90209041564ec988c58951cc7726604c1b"
+content-hash = "504c66482e6a92f88e970b77ec7e6b32571fc390f716061e5529d9043c9f92b7"
