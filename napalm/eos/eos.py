@@ -318,23 +318,36 @@ class EOSDriver(NetworkDriver):
         {'napalm_607123': 522}
         """
         config_sessions = self._run_commands(["show configuration sessions detail"])
-        config_sessions = config_sessions[0]["sessions"]
         # Arista reports the commitBy time relative to uptime of the box... :-(
         uptime = self._run_commands(["show version"])
         uptime = uptime[0].get("uptime", -1)
 
         pending_commits = {}
-        for session_name, session_dict in config_sessions.items():
-            if "pendingCommitTimer" in session_dict["state"]:
-                commit_by = session_dict.get("commitBy", -1)
-                # Set to -1 if something went wrong in the calculation.
-                if commit_by == -1 or uptime == -1:
-                    pending_commits[session_name] = -1
-                elif uptime >= commit_by:
-                    pending_commits[session_name] = -1
-                else:
-                    confirm_by_seconds = commit_by - uptime
-                    pending_commits[session_name] = round(confirm_by_seconds)
+        # Syntax change >EOS 4.32
+        if "commitTimerSessionName" in config_sessions[0]:
+            config_sessions = config_sessions[0]
+            session_name = config_sessions["commitTimerSessionName"]
+            commit_by = config_sessions["commitTimerExpireTime"]
+            if commit_by == -1 or uptime == -1:
+                pending_commits[session_name] = -1
+            elif uptime >= commit_by:
+                pending_commits[session_name] = -1
+            else:
+                confirm_by_seconds = commit_by - uptime
+                pending_commits[session_name] = round(confirm_by_seconds)
+        else:
+            config_sessions = config_sessions[0]["sessions"]
+            for session_name, session_dict in config_sessions.items():
+                if "pendingCommitTimer" in session_dict["state"]:
+                    commit_by = session_dict.get("commitBy", -1)
+                    # Set to -1 if something went wrong in the calculation.
+                    if commit_by == -1 or uptime == -1:
+                        pending_commits[session_name] = -1
+                    elif uptime >= commit_by:
+                        pending_commits[session_name] = -1
+                    else:
+                        confirm_by_seconds = commit_by - uptime
+                        pending_commits[session_name] = round(confirm_by_seconds)
 
         return pending_commits
 
@@ -2085,7 +2098,7 @@ class EOSDriver(NetworkDriver):
             startup_cfg = str(output[0]["output"]) if get_startup else ""
             if sanitized and startup_cfg:
                 startup_cfg = napalm.base.helpers.sanitize_config(
-                    startup_cfg, c.CISCO_SANITIZE_FILTERS
+                    startup_cfg, c.EOS_SANITIZE_FILTERS
                 )
             return {
                 "startup": startup_cfg,
@@ -2094,17 +2107,28 @@ class EOSDriver(NetworkDriver):
             }
         elif get_startup or get_running:
             if retrieve == "running":
-                commands = ["show {}-config{}".format(retrieve, run_full)]
+                commands = [
+                    "show {}-config{}{}".format(retrieve, run_full, run_sanitized)
+                ]
             elif retrieve == "startup":
                 commands = ["show {}-config".format(retrieve)]
             output = self._run_commands(commands, encoding="text")
+            startup_cfg = str(output[0]["output"]) if get_startup else ""
+            if sanitized and get_startup and startup_cfg:
+                startup_cfg = napalm.base.helpers.sanitize_config(
+                    startup_cfg, c.EOS_SANITIZE_FILTERS
+                )
             return {
-                "startup": str(output[0]["output"]) if get_startup else "",
+                "startup": startup_cfg,
                 "running": str(output[0]["output"]) if get_running else "",
                 "candidate": "",
             }
         elif get_candidate:
-            commands = ["show session-config named {}".format(self.config_session)]
+            commands = [
+                "show session-config named {}{}".format(
+                    self.config_session, run_sanitized
+                )
+            ]
             output = self._run_commands(commands, encoding="text")
             return {"startup": "", "running": "", "candidate": str(output[0]["output"])}
         elif retrieve == "candidate":
