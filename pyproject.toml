@@ -97,7 +97,34 @@ force-exclude = '.*'
 [tool.pylama]
 linters = "pycodestyle,pyflakes"
 ignore = "D203,C901,E203"
-skip = ".tox/*,.env/*,.venv/*,docs/"
+skip = ".tox/*,.env/*,.venv/*,docs/napalm_ansible_repo/*"
 
 [tool.pylama.linter.pycodestyle]
 max_line_length = 100
+
+[tool.pytest.ini_options]
+norecursedirs = [
+    ".git",
+    ".tox",
+    ".env",
+    ".venv",
+    "dist",
+    "build",
+    "south_migrations",
+    "migrations",
+    "napalm/base/test",
+]
+python_files = [
+    "test_*.py",
+    "*_test.py",
+    "tests.py",
+]
+
+[tool.coverage.run]
+source = ["napalm"]
+
+[tool.coverage.report]
+omit = [
+    "napalm/base/test/*",
+    "napalm/base/clitools/*",
+]
