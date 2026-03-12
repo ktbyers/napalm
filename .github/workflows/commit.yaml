@@ -35,28 +35,28 @@ jobs:
           uv run --no-project mypy --version
           uv run --no-project mypy -p napalm --config-file mypy.ini
 
-#  std_tests:
-#    name: std_tests
-#    strategy:
-#      matrix:
-#        python-version: ['3.10', '3.11', "3.12", "3.13", "3.14"]
-#        platform: [ubuntu-24.04]
-#    runs-on: ${{ matrix.platform }}
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Install uv
-#        uses: astral-sh/setup-uv@v5
-#        with:
-#          python-version: ${{ matrix.python-version }}
-#          enable-cache: true
-#
-#      - name: Install dependencies
-#        run: uv sync
-#
-#      - name: Run Tests
-#        run: uv run pytest --cov=napalm --cov-report term-missing -vs --pylama
-#
+  std_tests:
+    name: std_tests
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', "3.12", "3.13", "3.14"]
+        platform: [ubuntu-24.04]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run Tests
+        run: uv run pytest --cov=napalm --cov-report term-missing -vs --pylama
+
 #  std_tests_macos:
 #    name: std_tests_macos
 #    strategy:
