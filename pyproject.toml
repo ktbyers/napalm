@@ -65,7 +65,7 @@ dev = [
     "pytest-json-report==1.5.0",
     "pyflakes==3.4.0",
     "setuptools==81.0.0",
-    "pylama==8.4.1",
+    "pylama[toml]==8.4.1",
     "mypy==1.15.0",
     "ddt==1.7.2",
     "types-PyYAML==6.0.12.20250915",
@@ -91,4 +91,13 @@ package = true
 [tool.black]
 line-length = 100
 target-version = ['py310']
-skip-magic-trailing-comma = true  # This prevents the change you're seeing
+# FIX: black wants to autoformat a large number of files under 'uv' (defer this until later)
+force-exclude = '.*'
+
+[tool.pylama]
+linters = "pycodestyle,pyflakes"
+ignore = "D203,C901,E203"
+skip = ".tox/*,.env/*,.venv/*,docs/"
+
+[tool.pylama.linter.pycodestyle]
+max_line_length = 100
