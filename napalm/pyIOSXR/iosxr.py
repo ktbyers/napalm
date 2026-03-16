@@ -342,7 +342,7 @@ class IOSXR(object):
                             read_timeout=read_timeout,
                         )
         else:
-            output += self.device._read_channel_timing()  # try to read some more
+            output += self.device.read_channel_timing()  # try to read some more
 
         if "0xa3679e00" in output or "0xa367da00" in output:
             # when multiple parallel request are made, the device throws one of the the errors:
