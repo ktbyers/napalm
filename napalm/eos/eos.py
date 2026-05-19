@@ -677,11 +677,10 @@ class EOSDriver(NetworkDriver):
             encoding="json",
         )
 
-        bgp_counters = defaultdict(
-            lambda: models.BGPStateNeighborsPerVRFDict(
-                peers=models.BGPStateNeighborDict()  # type: ignore
-            )  # type: ignore
-        )  # type: ignore
+        # NOTE: ``models.BGPStateNeighborsPerVRFDict`` / ``BGPStateNeighborDict``
+        # are Pydantic models; we still build the return value as plain dicts
+        # here and the base contract will validate on return (Phase 2).
+        bgp_counters: "defaultdict[str, dict]" = defaultdict(lambda: {"peers": {}})
         # Iterate IPv4 and IPv6 neighbor details
         for cmd in cmd_outputs[2:]:
             for vrf_name, vrf_data in cmd["vrfs"].items():
