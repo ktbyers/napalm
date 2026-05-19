@@ -43,7 +43,7 @@ def _strict_models_enabled() -> bool:
 
 
 def _annotation_contains_model(annotation: Any) -> bool:
-    """Return True if ``annotation`` is, or contains, a NAPALM model class."""
+    """Return True if ``annotation`` is, or contains, a NAPALM Pydantic ``BaseModel`` subclass."""
     if isinstance(annotation, type) and issubclass(annotation, BaseModel):
         return True
     for arg in typing.get_args(annotation):
