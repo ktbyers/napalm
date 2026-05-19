@@ -24,7 +24,10 @@ import re
 
 from pydoc import locate
 
+from pydantic import TypeAdapter, ValidationError
+
 from napalm.base import models
+from napalm.base.base import _strict_models_enabled  # type: ignore[attr-defined]
 
 
 def raise_exception(result):  # type: ignore
@@ -62,7 +65,20 @@ def mocked_method(path: str, name: str, count: int) -> Callable:
             raise TypeError(
                 "{} got an unexpected keyword argument '{}'".format(name, unexpected[0])
             )
-        return mocked_data(path, name, count)
+        result = mocked_data(path, name, count)
+        if _strict_models_enabled():
+            try:
+                annotation = models.getter_model(name)
+            except (AttributeError, KeyError):
+                annotation = None
+            if annotation is not None:
+                try:
+                    TypeAdapter(annotation).validate_python(result)
+                except ValidationError as exc:
+                    raise napalm.base.exceptions.ModelValidationException(
+                        f"MockDriver.{name} fixture does not match the NAPALM contract:\n{exc}"
+                    ) from exc
+        return result
 
     return _mocked_method
 

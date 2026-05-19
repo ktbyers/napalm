@@ -4,41 +4,33 @@ from pydantic import BaseModel, ValidationError
 
 
 def test_model(model, data, allow_subset=False):
-    """Return if the dictionary ``data`` complies with the ``model``.
+    """Return True if ``data`` validates against the Pydantic ``model``.
 
-    ``model`` is either a Pydantic ``BaseModel`` subclass (the current shape) or
-    a legacy ``TypedDict`` (kept for transitional compatibility).
+    Thin wrapper around ``model.model_validate(data)``. ``allow_subset`` is
+    kept for back-compat with the legacy TypedDict-based signature: when set,
+    we skip validation of *required* fields by using ``model.model_construct``
+    (still enforces field-name set via ``extra='forbid'``).
+
+    A legacy TypedDict path is retained for any out-of-tree callers that
+    still pass ``TypedDict`` classes.
     """
     if isinstance(model, type) and issubclass(model, BaseModel):
-        return _validate_pydantic(model, data, allow_subset=allow_subset)
-    return _validate_typeddict(model, data, allow_subset=allow_subset)
+        try:
+            if allow_subset:
+                model.model_construct(**data)
+            else:
+                model.model_validate(data)
+        except ValidationError as exc:
+            print(f"model: {model.__name__}\nvalidation errors:\n{exc}")
+            return False
+        except TypeError as exc:
+            print(f"model: {model.__name__}\nconstruction error: {exc}")
+            return False
+        return True
 
-
-def _validate_pydantic(model, data, allow_subset=False):
-    """Validate ``data`` against a Pydantic ``BaseModel``.
-
-    ``allow_subset`` mirrors the legacy behaviour: it tolerates ``data``
-    containing only a subset of the model's fields. With Pydantic this means
-    "ignore missing required fields" — we approximate it by constructing the
-    model without validation when ``allow_subset`` is set.
-    """
-    try:
-        if allow_subset:
-            # ``model_construct`` skips validation but still enforces field set.
-            model.model_construct(**data)
-        else:
-            model.model_validate(data)
-    except ValidationError as exc:
-        print(f"model: {model.__name__}\nvalidation errors:\n{exc}")
-        return False
-    except TypeError as exc:
-        print(f"model: {model.__name__}\nconstruction error: {exc}")
-        return False
-    return True
-
-
-def _validate_typeddict(model, data, allow_subset=False):
-    """Legacy TypedDict validator — kept for any out-of-tree callers."""
+    # ------------------------------------------------------------------
+    # Legacy TypedDict path -- left in place for out-of-tree callers.
+    # ------------------------------------------------------------------
     annotations = model.__annotations__
     if allow_subset:
         same_keys = set(data.keys()) <= set(annotations.keys())

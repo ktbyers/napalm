@@ -6,10 +6,29 @@ import inspect
 import json
 
 import pytest
+from pydantic import TypeAdapter, ValidationError
+
 from napalm.base.test import helpers
 from napalm.base import models
 from napalm.base import NetworkDriver
 from napalm.base.test import conftest
+
+
+def _validate_contract(method_name, data):
+    """Validate ``data`` against ``NetworkDriver.<method_name>``'s return annotation.
+
+    Pydantic recurses through ``Dict[str, Model]`` / ``List[Model]`` /
+    ``RootModel`` so a single call replaces the historical per-element walk.
+    """
+    annotation = models.getter_model(method_name)
+    try:
+        TypeAdapter(annotation).validate_python(data)
+    except ValidationError as exc:
+        raise AssertionError(
+            f"{method_name} returned data that does not match the NAPALM "
+            f"contract ({annotation}):\n{exc}"
+        ) from exc
+    return True
 
 
 def list_dicts_diff(prv, nxt):
@@ -144,14 +163,14 @@ class BaseTestGetters(object):
     def test_is_alive(self, test_case):
         """Test is_alive method."""
         alive = self.device.is_alive()
-        assert helpers.test_model(models.AliveDict, alive)
+        assert _validate_contract("is_alive", alive)
         return alive
 
     @wrap_test_cases
     def test_get_facts(self, test_case):
         """Test get_facts method."""
         facts = self.device.get_facts()
-        assert helpers.test_model(models.FactsDict, facts)
+        assert _validate_contract("get_facts", facts)
         return facts
 
     @wrap_test_cases
@@ -159,10 +178,7 @@ class BaseTestGetters(object):
         """Test get_interfaces."""
         get_interfaces = self.device.get_interfaces()
         assert len(get_interfaces) > 0
-
-        for interface, interface_data in get_interfaces.items():
-            assert helpers.test_model(models.InterfaceDict, interface_data)
-
+        assert _validate_contract("get_interfaces", get_interfaces)
         return get_interfaces
 
     @wrap_test_cases
@@ -170,22 +186,15 @@ class BaseTestGetters(object):
         """Test get_lldp_neighbors."""
         get_lldp_neighbors = self.device.get_lldp_neighbors()
         assert len(get_lldp_neighbors) > 0
-
-        for interface, neighbor_list in get_lldp_neighbors.items():
-            for neighbor in neighbor_list:
-                assert helpers.test_model(models.LLDPNeighborDict, neighbor)
-
+        assert _validate_contract("get_lldp_neighbors", get_lldp_neighbors)
         return get_lldp_neighbors
 
     @wrap_test_cases
     def test_get_interfaces_counters(self, test_case):
         """Test get_interfaces_counters."""
         get_interfaces_counters = self.device.get_interfaces_counters()
-        assert len(self.device.get_interfaces_counters()) > 0
-
-        for interface, interface_data in get_interfaces_counters.items():
-            assert helpers.test_model(models.InterfaceCounterDict, interface_data)
-
+        assert len(get_interfaces_counters) > 0
+        assert _validate_contract("get_interfaces_counters", get_interfaces_counters)
         return get_interfaces_counters
 
     @wrap_test_cases
@@ -193,21 +202,7 @@ class BaseTestGetters(object):
         """Test get_environment."""
         environment = self.device.get_environment()
         assert len(environment) > 0
-
-        for fan, fan_data in environment["fans"].items():
-            assert helpers.test_model(models.FanDict, fan_data)
-
-        for power, power_data in environment["power"].items():
-            assert helpers.test_model(models.PowerDict, power_data)
-
-        for temperature, temperature_data in environment["temperature"].items():
-            assert helpers.test_model(models.TemperatureDict, temperature_data)
-
-        for cpu, cpu_data in environment["cpu"].items():
-            assert helpers.test_model(models.CPUDict, cpu_data)
-
-        assert helpers.test_model(models.MemoryDict, environment["memory"])
-
+        assert _validate_contract("get_environment", environment)
         return environment
 
     @wrap_test_cases
@@ -216,16 +211,7 @@ class BaseTestGetters(object):
         get_bgp_neighbors = self.device.get_bgp_neighbors()
         if len(get_bgp_neighbors) > 0:
             assert "global" in get_bgp_neighbors.keys()
-
-        for vrf, vrf_data in get_bgp_neighbors.items():
-            assert isinstance(vrf_data["router_id"], str)
-
-            for peer, peer_data in vrf_data["peers"].items():
-                assert helpers.test_model(models.PeerDict, peer_data)
-
-                for af, af_data in peer_data["address_family"].items():
-                    assert helpers.test_model(models.AFDict, af_data)
-
+        assert _validate_contract("get_bgp_neighbors", get_bgp_neighbors)
         return get_bgp_neighbors
 
     @wrap_test_cases
@@ -233,11 +219,7 @@ class BaseTestGetters(object):
         """Test get_lldp_neighbors_detail."""
         get_lldp_neighbors_detail = self.device.get_lldp_neighbors_detail()
         assert len(get_lldp_neighbors_detail) > 0
-
-        for interface, neighbor_list in get_lldp_neighbors_detail.items():
-            for neighbor in neighbor_list:
-                assert helpers.test_model(models.LLDPNeighborDetailDict, neighbor)
-
+        assert _validate_contract("get_lldp_neighbors_detail", get_lldp_neighbors_detail)
         return get_lldp_neighbors_detail
 
     @wrap_test_cases
@@ -245,28 +227,20 @@ class BaseTestGetters(object):
         """Test get_bgp_config."""
         get_bgp_config = self.device.get_bgp_config()
         assert get_bgp_config == {} or len(get_bgp_config) > 0
-
-        for bgp_group in get_bgp_config.values():
-            assert helpers.test_model(models.BGPConfigGroupDict, bgp_group)
-            for bgp_neighbor in bgp_group.get("neighbors", {}).values():
-                assert helpers.test_model(models.BGPConfigNeighborDict, bgp_neighbor)
-
+        assert _validate_contract("get_bgp_config", get_bgp_config)
         return get_bgp_config
 
     @wrap_test_cases
     def test_get_bgp_neighbors_detail(self, test_case):
-        """Test get_bgp_neighbors_detail."""
+        """Test get_bgp_neighbors_detail.
+
+        ``get_bgp_neighbors_detail`` return type is
+        ``Dict[str, Dict[int, List[PeerDetailsDict]]]`` -- Pydantic recurses
+        into the inner dict, so a single contract call is sufficient.
+        """
         get_bgp_neighbors_detail = self.device.get_bgp_neighbors_detail()
-
         assert len(get_bgp_neighbors_detail) > 0
-
-        for vrf, vrf_ases in get_bgp_neighbors_detail.items():
-            assert isinstance(vrf, str)
-            for remote_as, neighbor_list in vrf_ases.items():
-                assert isinstance(remote_as, int)
-                for neighbor in neighbor_list:
-                    assert helpers.test_model(models.PeerDetailsDict, neighbor)
-
+        assert _validate_contract("get_bgp_neighbors_detail", get_bgp_neighbors_detail)
         return get_bgp_neighbors_detail
 
     @wrap_test_cases
@@ -274,10 +248,7 @@ class BaseTestGetters(object):
         """Test get_arp_table."""
         get_arp_table = self.device.get_arp_table()
         assert len(get_arp_table) > 0
-
-        for arp_entry in get_arp_table:
-            assert helpers.test_model(models.ARPTableDict, arp_entry)
-
+        assert _validate_contract("get_arp_table", get_arp_table)
         return get_arp_table
 
     @wrap_test_cases
@@ -285,32 +256,28 @@ class BaseTestGetters(object):
         """Test get_arp_table."""
         get_arp_table = self.device.get_arp_table(vrf="TEST")
         assert len(get_arp_table) > 0
-
-        for arp_entry in get_arp_table:
-            assert helpers.test_model(models.ARPTableDict, arp_entry)
-
+        assert _validate_contract("get_arp_table", get_arp_table)
         return get_arp_table
 
     @wrap_test_cases
     def test_get_ipv6_neighbors_table(self, test_case):
         """Test get_ipv6_neighbors_table."""
         get_ipv6_neighbors_table = self.device.get_ipv6_neighbors_table()
-
-        for entry in get_ipv6_neighbors_table:
-            assert helpers.test_model(models.IPV6NeighborDict, entry)
-
+        assert _validate_contract("get_ipv6_neighbors_table", get_ipv6_neighbors_table)
         return get_ipv6_neighbors_table
 
     @wrap_test_cases
     def test_get_ntp_peers(self, test_case):
-        """Test get_ntp_peers."""
+        """Test get_ntp_peers.
+
+        ``NTPPeerDict`` is an open-ended model (all fields optional) so
+        validation is essentially type-checking the per-peer value is a dict.
+        """
         get_ntp_peers = self.device.get_ntp_peers()
         assert len(get_ntp_peers) > 0
-
-        for peer, peer_details in get_ntp_peers.items():
+        for peer in get_ntp_peers:
             assert isinstance(peer, str)
-            assert helpers.test_model(models.NTPPeerDict, peer_details, allow_subset=True)
-
+        assert _validate_contract("get_ntp_peers", get_ntp_peers)
         return get_ntp_peers
 
     @wrap_test_cases
@@ -318,11 +285,9 @@ class BaseTestGetters(object):
         """Test get_ntp_servers."""
         get_ntp_servers = self.device.get_ntp_servers()
         assert len(get_ntp_servers) > 0
-
-        for server, server_details in get_ntp_servers.items():
+        for server in get_ntp_servers:
             assert isinstance(server, str)
-            assert helpers.test_model(models.NTPServerDict, server_details, allow_subset=True)
-
+        assert _validate_contract("get_ntp_servers", get_ntp_servers)
         return get_ntp_servers
 
     @wrap_test_cases
@@ -330,10 +295,7 @@ class BaseTestGetters(object):
         """Test get_ntp_stats."""
         get_ntp_stats = self.device.get_ntp_stats()
         assert len(get_ntp_stats) > 0
-
-        for ntp_peer_details in get_ntp_stats:
-            assert helpers.test_model(models.NTPStats, ntp_peer_details)
-
+        assert _validate_contract("get_ntp_stats", get_ntp_stats)
         return get_ntp_stats
 
     @wrap_test_cases
@@ -341,15 +303,7 @@ class BaseTestGetters(object):
         """Test get_interfaces_ip."""
         get_interfaces_ip = self.device.get_interfaces_ip()
         assert len(get_interfaces_ip) > 0
-
-        for interface, interface_details in get_interfaces_ip.items():
-            ipv4 = interface_details.get("ipv4", {})
-            ipv6 = interface_details.get("ipv6", {})
-            for ip, ip_details in ipv4.items():
-                assert helpers.test_model(models.InterfacesIPDictEntry, ip_details)
-            for ip, ip_details in ipv6.items():
-                assert helpers.test_model(models.InterfacesIPDictEntry, ip_details)
-
+        assert _validate_contract("get_interfaces_ip", get_interfaces_ip)
         return get_interfaces_ip
 
     @wrap_test_cases
@@ -357,10 +311,7 @@ class BaseTestGetters(object):
         """Test get_mac_address_table."""
         get_mac_address_table = self.device.get_mac_address_table()
         assert len(get_mac_address_table) > 0
-
-        for mac_table_entry in get_mac_address_table:
-            assert helpers.test_model(models.MACAdressTable, mac_table_entry)
-
+        assert _validate_contract("get_mac_address_table", get_mac_address_table)
         return get_mac_address_table
 
     @wrap_test_cases
@@ -369,13 +320,8 @@ class BaseTestGetters(object):
         destination = "1.0.4.0/24"
         protocol = "bgp"
         get_route_to = self.device.get_route_to(destination=destination, protocol=protocol)
-
         assert len(get_route_to) > 0
-
-        for prefix, routes in get_route_to.items():
-            for route in routes:
-                assert helpers.test_model(models.RouteDict, route)
-
+        assert _validate_contract("get_route_to", get_route_to)
         return get_route_to
 
     @wrap_test_cases
@@ -387,41 +333,28 @@ class BaseTestGetters(object):
         get_route_to = self.device.get_route_to(
             destination=destination, protocol=protocol, longer=True
         )
-
         assert len(get_route_to) > 0
-
-        for prefix, routes in get_route_to.items():
-            for route in routes:
-                assert helpers.test_model(models.RouteDict, route)
-
+        assert _validate_contract("get_route_to", get_route_to)
         return get_route_to
 
     @wrap_test_cases
     def test_get_snmp_information(self, test_case):
         """Test get_snmp_information."""
         get_snmp_information = self.device.get_snmp_information()
-
         assert len(get_snmp_information) > 0
-
-        for snmp_entry in get_snmp_information:
-            assert helpers.test_model(models.SNMPDict, get_snmp_information)
-
-        for community, community_data in get_snmp_information["community"].items():
-            assert helpers.test_model(models.SNMPCommunityDict, community_data)
-
+        assert _validate_contract("get_snmp_information", get_snmp_information)
         return get_snmp_information
 
     @wrap_test_cases
     def test_get_probes_config(self, test_case):
         """Test get_probes_config."""
         get_probes_config = self.device.get_probes_config()
-
         assert len(get_probes_config) > 0
-
-        for probe_name, probe_tests in get_probes_config.items():
-            for test_name, test_config in probe_tests.items():
+        # get_probes_config -> Dict[probe_name, Dict[test_name, ProbeTestDict]];
+        # not modelled directly so walk one level then validate.
+        for probe_tests in get_probes_config.values():
+            for test_config in probe_tests.values():
                 assert helpers.test_model(models.ProbeTestDict, test_config)
-
         return get_probes_config
 
     @wrap_test_cases
@@ -429,11 +362,9 @@ class BaseTestGetters(object):
         """Test get_probes_results."""
         get_probes_results = self.device.get_probes_results()
         assert len(get_probes_results) > 0
-
-        for probe_name, probe_tests in get_probes_results.items():
-            for test_name, test_results in probe_tests.items():
+        for probe_tests in get_probes_results.values():
+            for test_results in probe_tests.values():
                 assert helpers.test_model(models.ProbeTestResultDict, test_results)
-
         return get_probes_results
 
     @wrap_test_cases
@@ -442,13 +373,7 @@ class BaseTestGetters(object):
         destination = "8.8.8.8"
         get_ping = self.device.ping(destination)
         assert isinstance(get_ping.get("success"), dict)
-        ping_results = get_ping.get("success", {})
-
-        assert helpers.test_model(models.PingDict, ping_results)
-
-        for ping_result in ping_results.get("results", []):
-            assert helpers.test_model(models.PingResultDictEntry, ping_result)
-
+        assert _validate_contract("ping", get_ping)
         return get_ping
 
     @wrap_test_cases
@@ -457,12 +382,7 @@ class BaseTestGetters(object):
         destination = "8.8.8.8"
         get_traceroute = self.device.traceroute(destination)
         assert isinstance(get_traceroute.get("success"), dict)
-        traceroute_results = get_traceroute.get("success", {})
-
-        for hope_id, hop_result in traceroute_results.items():
-            for probe_id, probe_result in hop_result.get("probes", {}).items():
-                assert helpers.test_model(models.TracerouteDict, probe_result)
-
+        assert _validate_contract("traceroute", get_traceroute)
         return get_traceroute
 
     @wrap_test_cases
@@ -470,11 +390,11 @@ class BaseTestGetters(object):
         """Test get_users."""
         get_users = self.device.get_users()
         assert len(get_users)
-
-        for user, user_details in get_users.items():
-            assert helpers.test_model(models.UsersDict, user_details)
-            assert (0 <= user_details.get("level") <= 15) or (user_details.get("level") == 20)
-
+        assert _validate_contract("get_users", get_users)
+        # Semantic check: privilege level is 0..15 or sentinel 20.
+        for user_details in get_users.values():
+            level = user_details.get("level")
+            assert (0 <= level <= 15) or level == 20
         return get_users
 
     @wrap_test_cases
@@ -482,19 +402,7 @@ class BaseTestGetters(object):
         """Test get_optics."""
         get_optics = self.device.get_optics()
         assert isinstance(get_optics, dict)
-
-        for iface, iface_data in get_optics.items():
-            assert isinstance(iface, str)
-            for channel in iface_data["physical_channels"]["channel"]:
-                assert len(channel) == 2
-                assert isinstance(channel["index"], int)
-                for field in ["input_power", "output_power", "laser_bias_current"]:
-                    assert len(channel["state"][field]) == 4
-                    assert isinstance(channel["state"][field]["instant"], float)
-                    assert isinstance(channel["state"][field]["avg"], float)
-                    assert isinstance(channel["state"][field]["min"], float)
-                    assert isinstance(channel["state"][field]["max"], float)
-
+        assert _validate_contract("get_optics", get_optics)
         return get_optics
 
     @wrap_test_cases
@@ -503,7 +411,7 @@ class BaseTestGetters(object):
         get_config = self.device.get_config()
 
         assert isinstance(get_config, dict)
-        assert helpers.test_model(models.ConfigDict, get_config)
+        assert _validate_contract("get_config", get_config)
 
         return get_config
 
@@ -527,7 +435,7 @@ class BaseTestGetters(object):
         get_config = self.device.get_config(sanitized=True)
 
         assert isinstance(get_config, dict)
-        assert helpers.test_model(models.ConfigDict, get_config)
+        assert _validate_contract("get_config", get_config)
 
         return get_config
 
@@ -537,7 +445,7 @@ class BaseTestGetters(object):
         return_config = {}
         get_config = self.device.get_config(retrieve="running", sanitized=True)
         assert isinstance(get_config, dict)
-        assert helpers.test_model(models.ConfigDict, get_config)
+        assert _validate_contract("get_config", get_config)
         assert get_config["startup"] == ""
         assert get_config["candidate"] == ""
         assert get_config["running"] != ""
@@ -545,7 +453,7 @@ class BaseTestGetters(object):
 
         get_config = self.device.get_config(retrieve="startup", sanitized=True)
         assert isinstance(get_config, dict)
-        assert helpers.test_model(models.ConfigDict, get_config)
+        assert _validate_contract("get_config", get_config)
         assert get_config["running"] == ""
         assert get_config["candidate"] == ""
 
@@ -559,15 +467,8 @@ class BaseTestGetters(object):
     def test_get_network_instances(self, test_case):
         """Test get_network_instances method."""
         get_network_instances = self.device.get_network_instances()
-
         assert isinstance(get_network_instances, dict)
-        for network_instance_name, network_instance in get_network_instances.items():
-            assert helpers.test_model(models.NetworkInstanceDict, network_instance)
-            assert helpers.test_model(models.NetworkInstanceStateDict, network_instance["state"])
-            assert helpers.test_model(
-                models.NetworkInstanceInterfacesDict, network_instance["interfaces"]
-            )
-
+        assert _validate_contract("get_network_instances", get_network_instances)
         return get_network_instances
 
     @wrap_test_cases
@@ -575,19 +476,13 @@ class BaseTestGetters(object):
         """Test get_firewall_policies method."""
         get_firewall_policies = self.device.get_firewall_policies()
         assert len(get_firewall_policies) > 0
-        for policy_name, policy_details in get_firewall_policies.items():
-            for policy_term in policy_details:
-                assert helpers.test_model(models.FirewallPolicyDict, policy_term)
+        assert _validate_contract("get_firewall_policies", get_firewall_policies)
         return get_firewall_policies
 
     @wrap_test_cases
     def test_get_vlans(self, test_case):
         """Test get_vlans."""
         get_vlans = self.device.get_vlans()
-
         assert len(get_vlans) > 0
-
-        for vlan, vlan_data in get_vlans.items():
-            assert helpers.test_model(models.VlanDict, vlan_data)
-
+        assert _validate_contract("get_vlans", get_vlans)
         return get_vlans
