@@ -100,10 +100,10 @@ class NetworkDriver(object):
         ``NAPALM_STRICT_MODELS`` is unset (a single env lookup).
         """
         super().__init_subclass__(**kwargs)
-        for attr_name, base_attr in NetworkDriver.__dict__.items():
-            if not callable(base_attr) or attr_name.startswith("_"):
+        for attr_name, attr_obj in NetworkDriver.__dict__.items():
+            if not callable(attr_obj) or attr_name.startswith("_"):
                 continue
-            annotation = base_attr.__annotations__.get("return")
+            annotation = attr_obj.__annotations__.get("return")
             if annotation is None or not _annotation_contains_model(annotation):
                 continue
             own = cls.__dict__.get(attr_name)
