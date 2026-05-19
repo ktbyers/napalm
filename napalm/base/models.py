@@ -166,7 +166,11 @@ class EnvironmentDict(_Model):
     fans: dict[str, FanDict]
     temperature: dict[str, TemperatureDict]
     power: dict[str, PowerDict]
-    cpu: dict[int, CPUDict]
+    # ``cpu`` keys are strings in practice across every driver: numeric like
+    # ``"0"`` (eos / ios / nxos), slot-style ``"0/RSP0/CPU0"`` (iosxr) or
+    # opaque ``"node0"`` (junos cluster). The historical ``dict[int, ...]``
+    # annotation never matched reality.
+    cpu: dict[str, CPUDict]
     memory: MemoryDict
 
 
@@ -507,8 +511,23 @@ class OpticsPhysicalChannelsDict(_Model):
     channel: list[OpticsPerChannelDict]
 
 
+class OpticsTransceiverState(_Model):
+    """Optional per-port transceiver metadata (vendor / serial / connector).
+
+    Currently populated by ``nxos_ssh.get_optics``; other drivers may extend
+    their output to match in the future.
+    """
+
+    vendor: str | None = None
+    vendor_part: str | None = None
+    vendor_rev: str | None = None
+    serial_no: str | None = None
+    connector_type: str | None = None
+
+
 class OpticsDict(_Model):
     physical_channels: OpticsPhysicalChannelsDict
+    state: OpticsTransceiverState | None = None
 
 
 # ---------------------------------------------------------------------------

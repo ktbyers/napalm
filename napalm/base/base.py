@@ -708,7 +708,9 @@ class NetworkDriver(object):
         """
         raise NotImplementedError
 
-    def get_bgp_config(self, group: str = "", neighbor: str = "") -> models.BGPConfigGroupDict:
+    def get_bgp_config(
+        self, group: str = "", neighbor: str = ""
+    ) -> Dict[str, models.BGPConfigGroupDict]:
         """
         Returns a dictionary containing the BGP configuration.
         Can return either the whole config, either the config only for a group or neighbor.
@@ -839,7 +841,7 @@ class NetworkDriver(object):
 
     def get_bgp_neighbors_detail(
         self, neighbor_address: str = ""
-    ) -> Dict[str, models.PeerDetailsDict]:
+    ) -> Dict[str, Dict[int, List[models.PeerDetailsDict]]]:
         """
         Returns a detailed view of the BGP neighbors as a dictionary of lists.
 
@@ -1132,7 +1134,7 @@ class NetworkDriver(object):
 
     def get_route_to(
         self, destination: str = "", protocol: str = "", longer: bool = False
-    ) -> Dict[str, models.RouteDict]:
+    ) -> Dict[str, List[models.RouteDict]]:
         """
         Returns a dictionary of dictionaries containing details of all available routes to a
         destination.
@@ -1237,7 +1239,7 @@ class NetworkDriver(object):
         """
         raise NotImplementedError
 
-    def get_probes_config(self) -> Dict[str, models.ProbeTestDict]:
+    def get_probes_config(self) -> Dict[str, Dict[str, models.ProbeTestDict]]:
         """
         Returns a dictionary with the probes configured on the device.
         Probes can be either RPM on JunOS devices, either SLA on IOS-XR. Other vendors do not
@@ -1275,7 +1277,7 @@ class NetworkDriver(object):
         """
         raise NotImplementedError
 
-    def get_probes_results(self) -> Dict[str, models.ProbeTestResultDict]:
+    def get_probes_results(self) -> Dict[str, Dict[str, models.ProbeTestResultDict]]:
         """
         Returns a dictionary with the results of the probes.
         The keys of the main dictionary represent the name of the probes.

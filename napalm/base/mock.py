@@ -38,6 +38,22 @@ def raise_exception(result):  # type: ignore
         raise TypeError("Couldn't resolve exception {}", result["exception"])
 
 
+def _contains_wildcard(value: Any) -> bool:
+    """Return True if ``value`` recursively contains the ``"..."`` wildcard.
+
+    The wildcard is the documented escape hatch in NAPALM mock fixtures for
+    values that should be ignored by ``dict_diff``. We use the same sentinel
+    to disable strict model validation on a per-fixture basis.
+    """
+    if value == "...":
+        return True
+    if isinstance(value, dict):
+        return any(_contains_wildcard(v) for v in value.values())
+    if isinstance(value, list):
+        return any(_contains_wildcard(v) for v in value)
+    return False
+
+
 def is_mocked_method(method: str) -> bool:
     mocked_methods = ["traceroute", "ping"]
     if method.startswith("get_") or method in mocked_methods:
@@ -66,7 +82,7 @@ def mocked_method(path: str, name: str, count: int) -> Callable:
                 "{} got an unexpected keyword argument '{}'".format(name, unexpected[0])
             )
         result = mocked_data(path, name, count)
-        if _strict_models_enabled():
+        if _strict_models_enabled() and not _contains_wildcard(result):
             try:
                 annotation = models.getter_model(name)
             except (AttributeError, KeyError):
@@ -165,7 +181,7 @@ class MockDriver(NetworkDriver):
         self.opened = False
 
     def is_alive(self) -> models.AliveDict:
-        return {"is_alive": self.opened}
+        return {"is_alive": self.opened}  # type: ignore[return-value]
 
     def cli(
         self, commands: List[str], encoding: str = "text"

@@ -8,7 +8,6 @@ import json
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from napalm.base.test import helpers
 from napalm.base import models
 from napalm.base import NetworkDriver
 from napalm.base.test import conftest
@@ -350,11 +349,7 @@ class BaseTestGetters(object):
         """Test get_probes_config."""
         get_probes_config = self.device.get_probes_config()
         assert len(get_probes_config) > 0
-        # get_probes_config -> Dict[probe_name, Dict[test_name, ProbeTestDict]];
-        # not modelled directly so walk one level then validate.
-        for probe_tests in get_probes_config.values():
-            for test_config in probe_tests.values():
-                assert helpers.test_model(models.ProbeTestDict, test_config)
+        assert _validate_contract("get_probes_config", get_probes_config)
         return get_probes_config
 
     @wrap_test_cases
@@ -362,9 +357,7 @@ class BaseTestGetters(object):
         """Test get_probes_results."""
         get_probes_results = self.device.get_probes_results()
         assert len(get_probes_results) > 0
-        for probe_tests in get_probes_results.values():
-            for test_results in probe_tests.values():
-                assert helpers.test_model(models.ProbeTestResultDict, test_results)
+        assert _validate_contract("get_probes_results", get_probes_results)
         return get_probes_results
 
     @wrap_test_cases

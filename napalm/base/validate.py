@@ -8,7 +8,7 @@ import yaml
 import copy
 import re
 from math import isclose
-from typing import Dict, List, Union, TypeVar, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, TypeVar, Union
 
 if TYPE_CHECKING:
     from napalm.base import NetworkDriver
@@ -46,7 +46,9 @@ def _mode(mode_string: str) -> Dict[str, bool]:
 def _compare_getter_list(
     src: List, dst: List, mode: Dict[str, bool]
 ) -> models.ListValidationResult:
-    result: models.ListValidationResult = {
+    # Built up as a plain dict; only meaningful as a ListValidationResult at
+    # the function boundary.
+    result: Dict[str, Any] = {
         "complies": True,
         "present": [],
         "missing": [],
@@ -82,13 +84,15 @@ def _compare_getter_list(
         result["extra"] = dst
         result["complies"] = False
 
-    return result
+    return result  # type: ignore[return-value]
 
 
 def _compare_getter_dict(
     src: Dict[str, List], dst: Dict[str, List], mode: Dict[str, bool]
 ) -> models.DictValidationResult:
-    result: models.DictValidationResult = {
+    # Built up as a plain dict; only meaningful as a DictValidationResult at
+    # the function boundary.
+    result: Dict[str, Any] = {
         "complies": True,
         "present": {},
         "missing": [],
@@ -129,7 +133,7 @@ def _compare_getter_dict(
         result["extra"] = list(dst.keys())
         result["complies"] = False
 
-    return result
+    return result  # type: ignore[return-value]
 
 
 CompareInput = TypeVar("CompareInput", str, Dict, List)
@@ -241,7 +245,7 @@ def compliance_report(
     validation_file: Optional[str] = None,
     validation_source: Optional[str] = None,
 ) -> models.ReportResult:
-    report: models.ReportResult = {}  # type: ignore
+    report: Dict[str, Any] = {}
     if validation_file:
         validation_source = _get_validation_file(validation_file)  # type: ignore
 

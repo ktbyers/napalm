@@ -1557,14 +1557,14 @@ class NXOSDriver(NXOSDriverBase):
                 count += 1
             return normalized
 
-        def _process_cpu(cpu_data: Dict) -> Dict[int, models.CPUDict]:
+        def _process_cpu(cpu_data: Dict) -> Dict[str, models.CPUDict]:
             idle = (
                 cpu_data.get("idle_percent")
                 if cpu_data.get("idle_percent")
                 else cpu_data["TABLE_cpu_util"]["ROW_cpu_util"]["idle_percent"]
             )
             assert isinstance(idle, str)
-            return {0: {"%usage": round(100 - float(idle), 2)}}
+            return {"0": {"%usage": round(100 - float(idle), 2)}}
 
         def _process_memory(memory_data: Dict) -> models.MemoryDict:
             avail = memory_data["TABLE_process_tag"]["ROW_process_tag"][
@@ -1599,7 +1599,9 @@ class NXOSDriver(NXOSDriverBase):
         for vlan in vlan_table_raw:
             if "vlanshowplist-ifidx" not in vlan.keys():
                 vlan["vlanshowplist-ifidx"] = []
-            vlans[vlan["vlanshowbr-vlanid"]] = {
+            # NXAPI may return the VLAN id as int; the contract is
+            # Dict[str, VlanDict] so coerce defensively.
+            vlans[str(vlan["vlanshowbr-vlanid"])] = {
                 "name": vlan["vlanshowbr-vlanname"],
                 "interfaces": self._parse_vlan_ports(vlan["vlanshowplist-ifidx"]),
             }
