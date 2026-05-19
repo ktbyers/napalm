@@ -43,6 +43,7 @@ dependencies = [
     "ttp_templates>=0.3.7",
     "netutils>=1.0.0",
     "typing-extensions>=4.12.2",
+    "pydantic>=2.7",
 ]
 
 [project.urls]
