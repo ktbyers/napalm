@@ -99,9 +99,14 @@ class NetworkDriver(object):
         replace it with the validating wrapper. The wrapping is cheap when
         ``NAPALM_STRICT_MODELS`` is unset (a single env lookup).
         """
+        # Methods that return model shapes but aren't named get_*.
+        NON_GETTER_METHODS = {"is_alive", "ping", "traceroute"}
+
         super().__init_subclass__(**kwargs)
         for attr_name, attr_obj in NetworkDriver.__dict__.items():
-            if not callable(attr_obj) or attr_name.startswith("_"):
+            if not callable(attr_obj) or not (
+                attr_name.startswith("get_") or attr_name in NON_GETTER_METHODS
+            ):
                 continue
             annotation = attr_obj.__annotations__.get("return")
             if annotation is None or not _annotation_contains_model(annotation):
