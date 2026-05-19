@@ -591,6 +591,30 @@ class ReportResult(_Model):
 # Registry — useful for schema export and the test framework
 # ---------------------------------------------------------------------------
 
+
+def getter_model(method_name: str) -> Any:
+    """Return the declared return annotation of ``NetworkDriver.<method_name>``.
+
+    The annotation is the full typing expression (e.g. ``FactsDict`` or
+    ``Dict[str, InterfaceDict]``) and is suitable as input to
+    :class:`pydantic.TypeAdapter` for validation.
+
+    Raises ``AttributeError`` if no such method exists, ``KeyError`` if the
+    method has no return annotation.
+    """
+    import typing
+
+    # Imported lazily to avoid a circular import at module load time.
+    from napalm.base.base import NetworkDriver
+
+    method = getattr(NetworkDriver, method_name)
+    hints = typing.get_type_hints(method)
+    try:
+        return hints["return"]
+    except KeyError as exc:
+        raise KeyError(f"NetworkDriver.{method_name} has no return annotation") from exc
+
+
 ALL_MODELS: dict[str, type[BaseModel]] = {
     name: obj
     for name, obj in list(globals().items())

@@ -124,10 +124,10 @@ class BaseTestGetters(object):
                 continue
             try:
                 orig = getattr(NetworkDriver, attr)
-                orig_spec = inspect.getfullargspec(orig)[:4]
+                orig_spec = inspect.getfullargspec(inspect.unwrap(orig))[:4]
             except AttributeError:
                 orig_spec = "Method does not exist in napalm.base"
-            func_spec = inspect.getfullargspec(func)[:4]
+            func_spec = inspect.getfullargspec(inspect.unwrap(func))[:4]
             if orig_spec != func_spec:
                 errors[attr] = (orig_spec, func_spec)
 

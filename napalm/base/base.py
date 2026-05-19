@@ -12,10 +12,14 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+import functools
+import os
 import sys
+import typing
 from types import TracebackType
-from typing import Optional, Dict, Type, Any, List, Union
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
+from pydantic import BaseModel, TypeAdapter, ValidationError
 from typing_extensions import Literal
 
 from netmiko import ConnectHandler, NetMikoTimeoutException
@@ -30,6 +34,55 @@ from napalm.base.exceptions import ConnectionException
 from napalm.base import models
 
 
+_STRICT_MODELS_ENV = "NAPALM_STRICT_MODELS"
+
+
+def _strict_models_enabled() -> bool:
+    """Return True if NAPALM_STRICT_MODELS is set to a truthy value."""
+    return os.environ.get(_STRICT_MODELS_ENV, "").lower() in ("1", "true", "yes", "on")
+
+
+def _annotation_contains_model(annotation: Any) -> bool:
+    """Return True if ``annotation`` is, or contains, a NAPALM model class."""
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return True
+    for arg in typing.get_args(annotation):
+        if _annotation_contains_model(arg):
+            return True
+    return False
+
+
+def _validate_return(method: Callable[..., Any]) -> Callable[..., Any]:
+    """Wrap a getter so its return value is validated against the contract.
+
+    Validation is only performed when ``NAPALM_STRICT_MODELS`` is set. The
+    return value itself is passed through unchanged regardless of mode —
+    drivers still return dicts (Phase 2 strategy (a)).
+    """
+    name = method.__name__
+
+    @functools.wraps(method)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        result = method(self, *args, **kwargs)
+        if _strict_models_enabled():
+            try:
+                annotation = models.getter_model(name)
+            except (AttributeError, KeyError):
+                annotation = None
+            if annotation is not None:
+                try:
+                    TypeAdapter(annotation).validate_python(result)
+                except ValidationError as exc:
+                    raise napalm.base.exceptions.ModelValidationException(
+                        f"{type(self).__name__}.{name} returned data that does "
+                        f"not match the NAPALM contract:\n{exc}"
+                    ) from exc
+        return result
+
+    wrapper.__wrapped__ = method  # type: ignore[attr-defined]
+    return wrapper
+
+
 class NetworkDriver(object):
     hostname: str
     username: str
@@ -37,6 +90,26 @@ class NetworkDriver(object):
     timeout: int
     force_no_enable: bool
     use_canonical_interface: bool
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Wrap any overridden getter with ``_validate_return``.
+
+        For every method on ``NetworkDriver`` whose return annotation refers
+        to a NAPALM Pydantic model, if a subclass defines its own version we
+        replace it with the validating wrapper. The wrapping is cheap when
+        ``NAPALM_STRICT_MODELS`` is unset (a single env lookup).
+        """
+        super().__init_subclass__(**kwargs)
+        for attr_name, base_attr in NetworkDriver.__dict__.items():
+            if not callable(base_attr) or attr_name.startswith("_"):
+                continue
+            annotation = base_attr.__annotations__.get("return")
+            if annotation is None or not _annotation_contains_model(annotation):
+                continue
+            own = cls.__dict__.get(attr_name)
+            if own is None or not callable(own) or getattr(own, "__wrapped__", None):
+                continue
+            setattr(cls, attr_name, _validate_return(own))
 
     def __init__(
         self,
@@ -99,7 +172,7 @@ class NetworkDriver(object):
         is released (unlocked).
         """
         try:
-            if self.is_alive()["is_alive"]:
+            if self.is_alive()["is_alive"]:  # type: ignore[index]
                 self.close()
         except Exception:
             pass

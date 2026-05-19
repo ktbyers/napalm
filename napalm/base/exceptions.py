@@ -21,6 +21,16 @@ class NapalmException(Exception):
     pass
 
 
+class ModelValidationException(NapalmException):
+    """Raised when a getter return value fails Pydantic validation.
+
+    Only raised when ``NAPALM_STRICT_MODELS`` is enabled; otherwise drivers
+    return data through the contract unchanged.
+    """
+
+    pass
+
+
 class ModuleImportError(NapalmException):
     pass
 
