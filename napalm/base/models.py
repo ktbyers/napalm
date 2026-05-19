@@ -10,8 +10,22 @@ Defaults:
     * ``populate_by_name=True`` — fields with aliases (e.g. ``%usage``) can be
       populated either by the alias or by the Python attribute name.
 
-Validation is *not* enforced on driver return values yet; that wiring lives in
-Phase 2 (``napalm/base/base.py`` + ``NAPALM_STRICT_MODELS``).
+Runtime validation of driver return values is wired up in
+``napalm/base/base.py``: ``NetworkDriver.__init_subclass__`` wraps every
+getter with ``_validate_return``, which feeds the return value through
+``pydantic.TypeAdapter(getter_model(name)).validate_python(result)`` when
+the ``NAPALM_STRICT_MODELS`` env var is truthy (default off). Mismatches
+raise ``napalm.base.exceptions.ModelValidationException``. CI runs with the
+flag set.
+
+Useful entry points from this module:
+
+* ``ALL_MODELS`` -- ``dict[str, type[BaseModel]]`` registry of every model
+  defined here. Iterate it for schema export / tooling.
+* ``getter_model(method_name)`` -- look up the full return annotation of
+  ``NetworkDriver.<method_name>`` (e.g. ``Dict[str, InterfaceDict]``),
+  suitable as input to ``pydantic.TypeAdapter``.
+* ``Model.model_json_schema()`` -- JSON Schema for any individual model.
 """
 
 from __future__ import annotations
