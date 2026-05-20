@@ -34,16 +34,23 @@ from napalm.base.exceptions import ConnectionException
 from napalm.base import models
 
 
+# Enables _validate_return, which enforces runtime compliance of all getter return values against 
+# the NAPALM Pydantic models defined in napalm/base/models.py.
 _STRICT_MODELS_ENV = "NAPALM_STRICT_MODELS"
 
 
 def _strict_models_enabled() -> bool:
-    """Return True if NAPALM_STRICT_MODELS is set to a truthy value."""
+    """Return True if NAPALM_STRICT_MODELS is set to a truthy value.
+
+    When enabled, _validate_return is active and enforces runtime compliance
+    of all getter return values against the NAPALM Pydantic models defined in
+    napalm/base/models.py.
+    """
     return os.environ.get(_STRICT_MODELS_ENV, "").lower() in ("1", "true", "yes", "on")
 
 
 def _annotation_contains_model(annotation: Any) -> bool:
-    """Return True if ``annotation`` is, or contains, a NAPALM Pydantic ``BaseModel`` subclass."""
+    """Return True if ``annotation`` is, or contains, a NAPALM model class (Pydantic model)."""
     if isinstance(annotation, type) and issubclass(annotation, BaseModel):
         return True
     for arg in typing.get_args(annotation):
@@ -57,7 +64,7 @@ def _validate_return(method: Callable[..., Any]) -> Callable[..., Any]:
 
     Validation is only performed when ``NAPALM_STRICT_MODELS`` is set. The
     return value itself is passed through unchanged regardless of mode —
-    drivers still return dicts (Phase 2 strategy (a)).
+    drivers still return dicts.
     """
     name = method.__name__
 
