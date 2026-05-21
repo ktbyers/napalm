@@ -603,11 +603,6 @@ class ListValidationResult(TypedDict):
     extra: List[Any]
 
 
-class ReportResult(TypedDict):
-    complies: bool
-    skipped: List[Any]
-
-
 # ---------------------------------------------------------------------------
 # Registry — useful for schema export and the test framework
 # ---------------------------------------------------------------------------

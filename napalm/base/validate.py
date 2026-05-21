@@ -240,7 +240,7 @@ def compliance_report(
     cls: "NetworkDriver",
     validation_file: Optional[str] = None,
     validation_source: Optional[str] = None,
-) -> models.ReportResult:
+) -> Dict[str, Any]:
     report: Dict[str, Any] = {}
     if validation_file:
         validation_source = _get_validation_file(validation_file)  # type: ignore

@@ -1834,7 +1834,7 @@ class NetworkDriver(object):
         self,
         validation_file: Optional[str] = None,
         validation_source: Optional[str] = None,
-    ) -> models.ReportResult:
+    ) -> Dict[str, Any]:
         """
         Return a compliance report.
 
