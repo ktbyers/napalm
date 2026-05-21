@@ -46,9 +46,7 @@ def _mode(mode_string: str) -> Dict[str, bool]:
 def _compare_getter_list(
     src: List, dst: List, mode: Dict[str, bool]
 ) -> models.ListValidationResult:
-    # Built up as a plain dict; only meaningful as a ListValidationResult at
-    # the function boundary.
-    result: Dict[str, Any] = {
+    result: models.ListValidationResult = {
         "complies": True,
         "present": [],
         "missing": [],
@@ -84,15 +82,13 @@ def _compare_getter_list(
         result["extra"] = dst
         result["complies"] = False
 
-    return result  # type: ignore[return-value]
+    return result
 
 
 def _compare_getter_dict(
     src: Dict[str, List], dst: Dict[str, List], mode: Dict[str, bool]
 ) -> models.DictValidationResult:
-    # Built up as a plain dict; only meaningful as a DictValidationResult at
-    # the function boundary.
-    result: Dict[str, Any] = {
+    result: models.DictValidationResult = {
         "complies": True,
         "present": {},
         "missing": [],
@@ -133,7 +129,7 @@ def _compare_getter_dict(
         result["extra"] = list(dst.keys())
         result["complies"] = False
 
-    return result  # type: ignore[return-value]
+    return result
 
 
 CompareInput = TypeVar("CompareInput", str, Dict, List)

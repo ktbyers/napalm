@@ -14,7 +14,7 @@ Defaults:
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Dict, List, TypedDict
 
 from pydantic import BaseModel
 from pydantic import ConfigDict as _PydanticConfig
@@ -581,23 +581,31 @@ class VlanDict(_Model):
 # ---------------------------------------------------------------------------
 
 
-class DictValidationResult(_Model):
+# ---------------------------------------------------------------------------
+# Validation framework result types -- internal to validate.py.
+# These are plain TypedDicts (not Pydantic models) because they are built up
+# incrementally as dicts and consumed via dict access throughout validate.py.
+# They do not represent device data and have no place in ALL_MODELS.
+# ---------------------------------------------------------------------------
+
+
+class DictValidationResult(TypedDict):
     complies: bool
-    present: dict[str, Any]
-    missing: list[Any]
-    extra: list[Any]
+    present: Dict[str, Any]
+    missing: List[Any]
+    extra: List[Any]
 
 
-class ListValidationResult(_Model):
+class ListValidationResult(TypedDict):
     complies: bool
-    present: list[Any]
-    missing: list[Any]
-    extra: list[Any]
+    present: List[Any]
+    missing: List[Any]
+    extra: List[Any]
 
 
-class ReportResult(_Model):
+class ReportResult(TypedDict):
     complies: bool
-    skipped: list[Any]
+    skipped: List[Any]
 
 
 # ---------------------------------------------------------------------------
