@@ -263,7 +263,7 @@ class BGPConfigGroupDict(_Model):
     # ``prefix_limit`` is a free-form nested dict keyed by AFI/SAFI; keeping it
     # loose for now (tightening is tracked in the migration plan).
     prefix_limit: dict[str, Any]
-    neighbors: dict[str, Any]
+    neighbors: dict[str, BGPConfigNeighborDict]
 
 
 class BGPConfigNeighborDict(_Model):

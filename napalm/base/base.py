@@ -184,7 +184,9 @@ class NetworkDriver(object):
         is released (unlocked).
         """
         try:
-            if self.is_alive()["is_alive"]:  # type: ignore[index]
+            alive = self.is_alive()
+            assert isinstance(alive, dict)
+            if alive["is_alive"]:
                 self.close()
         except Exception:
             pass
