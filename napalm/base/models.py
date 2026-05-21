@@ -10,22 +10,6 @@ Defaults:
     * ``populate_by_name=True`` — fields with aliases (e.g. ``%usage``) can be
       populated either by the alias or by the Python attribute name.
 
-Runtime validation of driver return values is wired up in
-``napalm/base/base.py``: ``NetworkDriver.__init_subclass__`` wraps every
-getter with ``_validate_return``, which feeds the return value through
-``pydantic.TypeAdapter(getter_model(name)).validate_python(result)`` when
-the ``NAPALM_STRICT_MODELS`` env var is truthy (default off). Mismatches
-raise ``napalm.base.exceptions.ModelValidationException``. CI runs with the
-flag set.
-
-Useful entry points from this module:
-
-* ``ALL_MODELS`` -- ``dict[str, type[BaseModel]]`` registry of every model
-  defined here. Iterate it for schema export / tooling.
-* ``getter_model(method_name)`` -- look up the full return annotation of
-  ``NetworkDriver.<method_name>`` (e.g. ``Dict[str, InterfaceDict]``),
-  suitable as input to ``pydantic.TypeAdapter``.
-* ``Model.model_json_schema()`` -- JSON Schema for any individual model.
 """
 
 from __future__ import annotations
@@ -42,19 +26,17 @@ from pydantic import Field, RootModel
 
 # Canonical MAC-address regex (xx:xx:xx:xx:xx:xx). Drivers normalise via
 # ``napalm.base.helpers.mac`` so this form is what we expect on the wire.
-MACAddress = Annotated[str, Field(pattern=r"^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$")]
+MACAddress = Annotated[str, Field(pattern=r"^[0-9A-F]{2}(:[0-9A-F]{2}){5}$")]
 
-# IP addresses are kept as plain strings for now; switching to ``IPvAnyAddress``
-# is tracked in the migration plan (Phase 1 / Phase 4 fallout).
+# IP addresses are kept as plain strings for now
 IPAddress = str
 IPv6Address = str
 
 # Interface MTU. Drivers may report ``0`` (sub-interfaces / loopbacks) or
-# ``-1`` as a sentinel for "not available"; we therefore keep this loose for
-# now and leave a real bound for a future cleanup pass.
+# ``-1`` as a sentinel for "not available".
 MTU = int
 
-# Linux/IOS-style privilege levels: 0..15 are standard, ``20`` is used by some
+# IOS-style privilege levels: 0..15 are standard, ``20`` is used by some
 # drivers as a sentinel for "unknown / not applicable".
 UserLevel = Annotated[int, Field(ge=0, le=20)]
 
@@ -101,7 +83,7 @@ class InterfaceDict(_Model):
     last_flapped: float
     mtu: MTU
     speed: float
-    mac_address: str  # may be empty for L3 sub-interfaces; not enforced as MAC
+    mac_address: str  # may be empty for L3 sub-interfaces
 
 
 class InterfaceCounterDict(_Model):
@@ -182,8 +164,7 @@ class EnvironmentDict(_Model):
     power: dict[str, PowerDict]
     # ``cpu`` keys are strings in practice across every driver: numeric like
     # ``"0"`` (eos / ios / nxos), slot-style ``"0/RSP0/CPU0"`` (iosxr) or
-    # opaque ``"node0"`` (junos cluster). The historical ``dict[int, ...]``
-    # annotation never matched reality.
+    # opaque ``"node0"`` (junos cluster).
     cpu: dict[str, CPUDict]
     memory: MemoryDict
 
@@ -260,8 +241,7 @@ class BGPConfigGroupDict(_Model):
     import_policy: str
     export_policy: str
     remove_private_as: bool
-    # ``prefix_limit`` is a free-form nested dict keyed by AFI/SAFI; keeping it
-    # loose for now (tightening is tracked in the migration plan).
+    # ``prefix_limit`` is a nested dict keyed by AFI/SAFI; keeping it loose for now.
     prefix_limit: dict[str, Any]
     neighbors: dict[str, BGPConfigNeighborDict]
 
@@ -325,7 +305,7 @@ class NTPPeerDict(_Model):
     """``get_ntp_peers`` returns ``{peer: {}}`` — an empty per-peer dict."""
 
     # All fields optional / extra forbidden → matches the historical
-    # ``TypedDict(..., total=False)`` with no declared keys.
+    # ``TypedDict declaration
 
 
 class NTPServerDict(_Model):
@@ -375,11 +355,11 @@ class InterfacesIPDict(_Model):
 
 
 # ---------------------------------------------------------------------------
-# MAC table / routing / SNMP
+# MAC table / routing / SNM
 # ---------------------------------------------------------------------------
 
 
-class MACAdressTable(_Model):
+class MACAddressTable(_Model):
     """Historical misspelling preserved for back-compat (``MACAdress``)."""
 
     mac: str
@@ -647,6 +627,10 @@ def getter_model(method_name: str) -> Any:
     except KeyError as exc:
         raise KeyError(f"NetworkDriver.{method_name} has no return annotation") from exc
 
+
+# Backwards-compatibility alias for the misspelled class name.
+# Deprecated: use MACAddressTable.
+MACAdressTable = MACAddressTable
 
 ALL_MODELS: dict[str, type[BaseModel]] = {
     name: obj

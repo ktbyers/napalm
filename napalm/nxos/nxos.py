@@ -1301,8 +1301,8 @@ class NXOSDriver(NXOSDriverBase):
                 interfaces_ip[interface_name]["ipv6"][address].update({"prefix_length": prefix})
         return interfaces_ip
 
-    def get_mac_address_table(self) -> List[models.MACAdressTable]:
-        mac_table: List[models.MACAdressTable] = []
+    def get_mac_address_table(self) -> List[models.MACAddressTable]:
+        mac_table: List[models.MACAddressTable] = []
         command = "show mac address-table"
         mac_table_raw = self._get_command_table(command, "TABLE_mac_address", "ROW_mac_address")
 

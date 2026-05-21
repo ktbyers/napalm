@@ -1096,7 +1096,7 @@ class NetworkDriver(object):
         """
         raise NotImplementedError
 
-    def get_mac_address_table(self) -> List[models.MACAdressTable]:
+    def get_mac_address_table(self) -> List[models.MACAddressTable]:
         """
         Returns a lists of dictionaries. Each dictionary represents an entry in the MAC Address
         Table, having the following keys:
@@ -1150,8 +1150,9 @@ class NetworkDriver(object):
         self, destination: str = "", protocol: str = "", longer: bool = False
     ) -> Dict[str, List[models.RouteDict]]:
         """
-        Returns a dictionary of dictionaries containing details of all available routes to a
-        destination.
+        Returns a dictionary of lists containing details of all available routes to a
+        destination. Each key is a destination prefix and the value is a list of route
+        entries for that prefix (e.g. multiple paths, ECMP, active vs inactive routes).
 
         :param destination: The destination prefix to be used when filtering the routes.
         :param protocol: Retrieve the routes only for a specific protocol.
