@@ -19,7 +19,7 @@ def _validate_contract(method_name, data):
     Pydantic recurses through ``Dict[str, Model]`` / ``List[Model]`` /
     ``RootModel`` so a single call replaces the historical per-element walk.
     """
-    annotation = models.getter_model(method_name)
+    annotation = models.getter_return_annotation(method_name)
     try:
         TypeAdapter(annotation).validate_python(data)
     except ValidationError as exc:

@@ -73,7 +73,7 @@ def _validate_return(method: Callable[..., Any]) -> Callable[..., Any]:
         result = method(self, *args, **kwargs)
         if _strict_models_enabled():
             try:
-                annotation = models.getter_model(name)
+                annotation = models.getter_return_annotation(name)
             except (AttributeError, KeyError):
                 annotation = None
             if annotation is not None:

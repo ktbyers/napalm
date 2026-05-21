@@ -84,7 +84,7 @@ def mocked_method(path: str, name: str, count: int) -> Callable:
         result = mocked_data(path, name, count)
         if _strict_models_enabled() and not _contains_wildcard(result):
             try:
-                annotation = models.getter_model(name)
+                annotation = models.getter_return_annotation(name)
             except (AttributeError, KeyError):
                 annotation = None
             if annotation is not None:

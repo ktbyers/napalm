@@ -605,7 +605,7 @@ class ReportResult(_Model):
 # ---------------------------------------------------------------------------
 
 
-def getter_model(method_name: str) -> Any:
+def getter_return_annotation(method_name: str) -> Any:
     """Return the declared return annotation of ``NetworkDriver.<method_name>``.
 
     The annotation is the full typing expression (e.g. ``FactsDict`` or

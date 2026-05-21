@@ -6,7 +6,7 @@ These tests do not exercise any driver -- they verify that:
    (i.e. has no construction-time inconsistency).
 2. Every getter / ping / traceroute / is_alive method declared on
    ``NetworkDriver`` resolves to a ``models.X`` annotation via
-   ``models.getter_model``.
+   ``models.getter_return_annotation``.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def test_model_json_schema(name):
 
 
 # ---------------------------------------------------------------------------
-# 2. getter_model() resolves every contract method
+# 2. getter_return_annotation() resolves every contract method
 # ---------------------------------------------------------------------------
 
 
@@ -58,9 +58,9 @@ def _contract_methods():
 
 
 @pytest.mark.parametrize("method_name", _contract_methods())
-def test_getter_model_resolves(method_name):
-    """``models.getter_model`` returns an annotation containing a NAPALM model."""
-    annotation = models.getter_model(method_name)
+def test_getter_return_annotation_resolves(method_name):
+    """``models.getter_return_annotation`` returns an annotation containing a NAPALM model."""
+    annotation = models.getter_return_annotation(method_name)
     assert _annotation_contains_model(annotation), (
         f"NetworkDriver.{method_name} return annotation does not reference a "
         f"BaseModel: {annotation!r}"
