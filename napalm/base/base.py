@@ -34,7 +34,7 @@ from napalm.base.exceptions import ConnectionException
 from napalm.base import models
 
 
-# Enables _validate_return, which enforces runtime compliance of all getter return values against 
+# Enables _validate_return, which enforces runtime compliance of all getter return values against
 # the NAPALM Pydantic models defined in napalm/base/models.py.
 _STRICT_MODELS_ENV = "NAPALM_STRICT_MODELS"
 
