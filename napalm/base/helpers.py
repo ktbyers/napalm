@@ -37,7 +37,6 @@ except ImportError:
 # local modules
 import napalm.base.exceptions
 from napalm.base import constants
-from napalm.base.models import ConfigDict
 from napalm.base.utils.jinja_filters import CustomJinjaFilters
 
 T = TypeVar("T")
@@ -599,13 +598,17 @@ def sanitize_config(config: str, filters: Dict) -> str:
     return config
 
 
-def sanitize_configs(configs: ConfigDict, filters: Dict) -> ConfigDict:
+def sanitize_configs(configs: Dict[str, str], filters: Dict) -> Dict[str, str]:
     """
     Apply sanitize_config on the dictionary of configs typically returned by
     the get_config method.
+
+    The argument is the raw ``dict`` form a driver assembles before returning;
+    the NAPALM contract validates it against ``models.ConfigDict`` at the
+    NetworkDriver boundary.
     """
     for cfg_name, config in configs.items():
         assert isinstance(config, str)
         if config.strip():
-            configs[cfg_name] = sanitize_config(config, filters)  # type: ignore
+            configs[cfg_name] = sanitize_config(config, filters)
     return configs

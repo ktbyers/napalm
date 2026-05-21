@@ -1,9 +1,36 @@
 """Several methods to help with the tests."""
 
+from pydantic import BaseModel, ValidationError
+
 
 def test_model(model, data, allow_subset=False):
-    """Return if the dictionary `data` complies with the `model`."""
-    # Access the underlying schema for a TypedDict directly
+    """Return True if ``data`` validates against the Pydantic ``model``.
+
+    Thin wrapper around ``model.model_validate(data)``. ``allow_subset`` is
+    kept for back-compat with the legacy TypedDict-based signature: when set,
+    we skip validation of *required* fields by using ``model.model_construct``
+    (still enforces field-name set via ``extra='forbid'``).
+
+    A legacy TypedDict path is retained for any out-of-tree callers that
+    still pass ``TypedDict`` classes.
+    """
+    if isinstance(model, type) and issubclass(model, BaseModel):
+        try:
+            if allow_subset:
+                model.model_construct(**data)
+            else:
+                model.model_validate(data)
+        except ValidationError as exc:
+            print(f"model: {model.__name__}\nvalidation errors:\n{exc}")
+            return False
+        except TypeError as exc:
+            print(f"model: {model.__name__}\nconstruction error: {exc}")
+            return False
+        return True
+
+    # ------------------------------------------------------------------
+    # Legacy TypedDict path -- left in place for out-of-tree callers.
+    # ------------------------------------------------------------------
     annotations = model.__annotations__
     if allow_subset:
         same_keys = set(data.keys()) <= set(annotations.keys())

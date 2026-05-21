@@ -8,7 +8,7 @@ import yaml
 import copy
 import re
 from math import isclose
-from typing import Dict, List, Union, TypeVar, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, TypeVar, Union
 
 if TYPE_CHECKING:
     from napalm.base import NetworkDriver
@@ -240,8 +240,8 @@ def compliance_report(
     cls: "NetworkDriver",
     validation_file: Optional[str] = None,
     validation_source: Optional[str] = None,
-) -> models.ReportResult:
-    report: models.ReportResult = {}  # type: ignore
+) -> Dict[str, Any]:
+    report: Dict[str, Any] = {}
     if validation_file:
         validation_source = _get_validation_file(validation_file)  # type: ignore
 

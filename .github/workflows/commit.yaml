@@ -55,6 +55,8 @@ jobs:
         run: uv sync
 
       - name: Run Tests
+        env:
+          NAPALM_STRICT_MODELS: "1"
         run: uv run pytest --cov=napalm --cov-report term-missing -vs
 
   std_tests_macos:
@@ -77,6 +79,8 @@ jobs:
         run: uv sync
 
       - name: Run Tests
+        env:
+          NAPALM_STRICT_MODELS: "1"
         run: uv run pytest --cov=napalm --cov-report term-missing -vs
 
   build_docs:

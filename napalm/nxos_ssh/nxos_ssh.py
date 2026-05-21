@@ -1549,7 +1549,7 @@ class NXOSSSHDriver(NXOSDriverBase):
                 vlan_number = vlan["vlanshowbr-vlanid-utf"]
             else:
                 vlan_number = vlan["vlanshowbr-vlanid"]
-            vlans[vlan_number] = {
+            vlans[str(vlan_number)] = {
                 "name": vlan["vlanshowbr-vlanname"],
                 "interfaces": self._parse_vlan_ports(vlan["vlanshowplist-ifidx"]),
             }

@@ -12,10 +12,14 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+import functools
+import os
 import sys
+import typing
 from types import TracebackType
-from typing import Optional, Dict, Type, Any, List, Union
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
+from pydantic import BaseModel, TypeAdapter, ValidationError
 from typing_extensions import Literal
 
 from netmiko import ConnectHandler, NetMikoTimeoutException
@@ -30,6 +34,62 @@ from napalm.base.exceptions import ConnectionException
 from napalm.base import models
 
 
+# Enables _validate_return, which enforces runtime compliance of all getter return values against
+# the NAPALM Pydantic models defined in napalm/base/models.py.
+_STRICT_MODELS_ENV = "NAPALM_STRICT_MODELS"
+
+
+def _strict_models_enabled() -> bool:
+    """Return True if NAPALM_STRICT_MODELS is set to a truthy value.
+
+    When enabled, _validate_return is active and enforces runtime compliance
+    of all getter return values against the NAPALM Pydantic models defined in
+    napalm/base/models.py.
+    """
+    return os.environ.get(_STRICT_MODELS_ENV, "").lower() in ("1", "true", "yes", "on")
+
+
+def _annotation_contains_model(annotation: Any) -> bool:
+    """Return True if ``annotation`` is, or contains, a NAPALM model class (Pydantic model)."""
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return True
+    for arg in typing.get_args(annotation):
+        if _annotation_contains_model(arg):
+            return True
+    return False
+
+
+def _validate_return(method: Callable[..., Any]) -> Callable[..., Any]:
+    """Wrap a getter so its return value is validated against the contract.
+
+    Validation is only performed when ``NAPALM_STRICT_MODELS`` is set. The
+    return value itself is passed through unchanged regardless of mode —
+    drivers still return dicts.
+    """
+    name = method.__name__
+
+    @functools.wraps(method)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        result = method(self, *args, **kwargs)
+        if _strict_models_enabled():
+            try:
+                annotation = models.getter_return_annotation(name)
+            except (AttributeError, KeyError):
+                annotation = None
+            if annotation is not None:
+                try:
+                    TypeAdapter(annotation).validate_python(result)
+                except ValidationError as exc:
+                    raise napalm.base.exceptions.ModelValidationException(
+                        f"{type(self).__name__}.{name} returned data that does "
+                        f"not match the NAPALM contract:\n{exc}"
+                    ) from exc
+        return result
+
+    wrapper.__wrapped__ = method  # type: ignore[attr-defined]
+    return wrapper
+
+
 class NetworkDriver(object):
     hostname: str
     username: str
@@ -37,6 +97,31 @@ class NetworkDriver(object):
     timeout: int
     force_no_enable: bool
     use_canonical_interface: bool
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Wrap any overridden getter with ``_validate_return``.
+
+        For every method on ``NetworkDriver`` whose return annotation refers
+        to a NAPALM Pydantic model, if a subclass defines its own version we
+        replace it with the validating wrapper. The wrapping is cheap when
+        ``NAPALM_STRICT_MODELS`` is unset (a single env lookup).
+        """
+        # Methods that return model shapes but aren't named get_*.
+        NON_GETTER_METHODS = {"is_alive", "ping", "traceroute"}
+
+        super().__init_subclass__(**kwargs)
+        for attr_name, attr_obj in NetworkDriver.__dict__.items():
+            if not callable(attr_obj) or not (
+                attr_name.startswith("get_") or attr_name in NON_GETTER_METHODS
+            ):
+                continue
+            annotation = attr_obj.__annotations__.get("return")
+            if annotation is None or not _annotation_contains_model(annotation):
+                continue
+            own = cls.__dict__.get(attr_name)
+            if own is None or not callable(own) or getattr(own, "__wrapped__", None):
+                continue
+            setattr(cls, attr_name, _validate_return(own))
 
     def __init__(
         self,
@@ -99,7 +184,9 @@ class NetworkDriver(object):
         is released (unlocked).
         """
         try:
-            if self.is_alive()["is_alive"]:
+            alive = self.is_alive()
+            assert isinstance(alive, dict)
+            if alive["is_alive"]:
                 self.close()
         except Exception:
             pass
@@ -635,7 +722,9 @@ class NetworkDriver(object):
         """
         raise NotImplementedError
 
-    def get_bgp_config(self, group: str = "", neighbor: str = "") -> models.BGPConfigGroupDict:
+    def get_bgp_config(
+        self, group: str = "", neighbor: str = ""
+    ) -> Dict[str, models.BGPConfigGroupDict]:
         """
         Returns a dictionary containing the BGP configuration.
         Can return either the whole config, either the config only for a group or neighbor.
@@ -766,7 +855,7 @@ class NetworkDriver(object):
 
     def get_bgp_neighbors_detail(
         self, neighbor_address: str = ""
-    ) -> Dict[str, models.PeerDetailsDict]:
+    ) -> Dict[str, Dict[int, List[models.PeerDetailsDict]]]:
         """
         Returns a detailed view of the BGP neighbors as a dictionary of lists.
 
@@ -1007,7 +1096,7 @@ class NetworkDriver(object):
         """
         raise NotImplementedError
 
-    def get_mac_address_table(self) -> List[models.MACAdressTable]:
+    def get_mac_address_table(self) -> List[models.MACAddressTable]:
         """
         Returns a lists of dictionaries. Each dictionary represents an entry in the MAC Address
         Table, having the following keys:
@@ -1059,10 +1148,11 @@ class NetworkDriver(object):
 
     def get_route_to(
         self, destination: str = "", protocol: str = "", longer: bool = False
-    ) -> Dict[str, models.RouteDict]:
+    ) -> Dict[str, List[models.RouteDict]]:
         """
-        Returns a dictionary of dictionaries containing details of all available routes to a
-        destination.
+        Returns a dictionary of lists containing details of all available routes to a
+        destination. Each key is a destination prefix and the value is a list of route
+        entries for that prefix (e.g. multiple paths, ECMP, active vs inactive routes).
 
         :param destination: The destination prefix to be used when filtering the routes.
         :param protocol: Retrieve the routes only for a specific protocol.
@@ -1164,7 +1254,7 @@ class NetworkDriver(object):
         """
         raise NotImplementedError
 
-    def get_probes_config(self) -> Dict[str, models.ProbeTestDict]:
+    def get_probes_config(self) -> Dict[str, Dict[str, models.ProbeTestDict]]:
         """
         Returns a dictionary with the probes configured on the device.
         Probes can be either RPM on JunOS devices, either SLA on IOS-XR. Other vendors do not
@@ -1202,7 +1292,7 @@ class NetworkDriver(object):
         """
         raise NotImplementedError
 
-    def get_probes_results(self) -> Dict[str, models.ProbeTestResultDict]:
+    def get_probes_results(self) -> Dict[str, Dict[str, models.ProbeTestResultDict]]:
         """
         Returns a dictionary with the results of the probes.
         The keys of the main dictionary represent the name of the probes.
@@ -1744,7 +1834,7 @@ class NetworkDriver(object):
         self,
         validation_file: Optional[str] = None,
         validation_source: Optional[str] = None,
-    ) -> models.ReportResult:
+    ) -> Dict[str, Any]:
         """
         Return a compliance report.
 

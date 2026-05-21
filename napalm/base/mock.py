@@ -24,7 +24,10 @@ import re
 
 from pydoc import locate
 
+from pydantic import TypeAdapter, ValidationError
+
 from napalm.base import models
+from napalm.base.base import _strict_models_enabled  # type: ignore[attr-defined]
 
 
 def raise_exception(result):  # type: ignore
@@ -33,6 +36,22 @@ def raise_exception(result):  # type: ignore
         raise exc(*result.get("args", []), **result.get("kwargs", {}))
     else:
         raise TypeError("Couldn't resolve exception {}", result["exception"])
+
+
+def _contains_wildcard(value: Any) -> bool:
+    """Return True if ``value`` recursively contains the ``"..."`` wildcard.
+
+    The wildcard is the documented escape hatch in NAPALM mock fixtures for
+    values that should be ignored by ``dict_diff``. We use the same sentinel
+    to disable strict model validation on a per-fixture basis.
+    """
+    if value == "...":
+        return True
+    if isinstance(value, dict):
+        return any(_contains_wildcard(v) for v in value.values())
+    if isinstance(value, list):
+        return any(_contains_wildcard(v) for v in value)
+    return False
 
 
 def is_mocked_method(method: str) -> bool:
@@ -62,7 +81,20 @@ def mocked_method(path: str, name: str, count: int) -> Callable:
             raise TypeError(
                 "{} got an unexpected keyword argument '{}'".format(name, unexpected[0])
             )
-        return mocked_data(path, name, count)
+        result = mocked_data(path, name, count)
+        if _strict_models_enabled() and not _contains_wildcard(result):
+            try:
+                annotation = models.getter_return_annotation(name)
+            except (AttributeError, KeyError):
+                annotation = None
+            if annotation is not None:
+                try:
+                    TypeAdapter(annotation).validate_python(result)
+                except ValidationError as exc:
+                    raise napalm.base.exceptions.ModelValidationException(
+                        f"MockDriver.{name} fixture does not match the NAPALM contract:\n{exc}"
+                    ) from exc
+        return result
 
     return _mocked_method
 
@@ -149,7 +181,7 @@ class MockDriver(NetworkDriver):
         self.opened = False
 
     def is_alive(self) -> models.AliveDict:
-        return {"is_alive": self.opened}
+        return {"is_alive": self.opened}  # type: ignore[return-value]
 
     def cli(
         self, commands: List[str], encoding: str = "text"

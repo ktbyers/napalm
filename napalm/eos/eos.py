@@ -677,11 +677,10 @@ class EOSDriver(NetworkDriver):
             encoding="json",
         )
 
-        bgp_counters = defaultdict(
-            lambda: models.BGPStateNeighborsPerVRFDict(
-                peers=models.BGPStateNeighborDict()  # type: ignore
-            )  # type: ignore
-        )  # type: ignore
+        # NOTE: ``models.BGPStateNeighborsPerVRFDict`` / ``BGPStateNeighborDict``
+        # are Pydantic models; we still build the return value as plain dicts
+        # here and the base contract will validate on return (Phase 2).
+        bgp_counters: "defaultdict[str, dict]" = defaultdict(lambda: {"peers": {}})
         # Iterate IPv4 and IPv6 neighbor details
         for cmd in cmd_outputs[2:]:
             for vrf_name, vrf_data in cmd["vrfs"].items():
@@ -783,7 +782,7 @@ class EOSDriver(NetworkDriver):
         # Cpu(s):  5.2%us,  1.4%sy,  0.0%ni, 92.2%id,  0.6%wa,  0.3%hi,  0.4%si,  0.0%st ( 4.16 > )
         # %Cpu(s):  4.2 us,  0.9 sy,  0.0 ni, 94.6 id,  0.0 wa,  0.1 hi,  0.2 si,  0.0 st ( 4.16 < )
         m = re.match(".*ni, (?P<idle>.*).id.*", cpu_lines[2])
-        environment_counters["cpu"][0] = {"%usage": round(100 - float(m.group("idle")), 1)}
+        environment_counters["cpu"]["0"] = {"%usage": round(100 - float(m.group("idle")), 1)}
         # Matches either of
         # Mem:   3844356k total,  3763184k used,    81172k free,    16732k buffers ( 4.16 > )
         # KiB Mem:  32472080 total,  5697604 used, 26774476 free,   372052 buffers ( 4.16 < )
